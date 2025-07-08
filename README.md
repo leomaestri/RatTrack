@@ -2,6 +2,23 @@
 
 Easy tool for researchers to train, test and apply tracking of mice and rats in lab videos, adaptable to diverse workflows. Your feedback helps improve the project. To suggest features or collaborate, email [leonardo.maestri.data@gmail.com](mailto:leonardo.maestri.data@gmail.com) or connect on LinkedIn: linkedin.com/in/leonardo-maestri-data-scientist/
 
+## Colab Notebooks
+
+Get started immediately on Google Colab:
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/leomaestri/RatTrack/blob/main/notebooks/train_yolov11.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/leomaestri/RatTrack/blob/main/notebooks/test_yolov11.ipynb)
+
+Common Workflow
+
+1) Open the Test Notebook.
+
+2) Load your video and run inference.
+
+3) Download the generated labels and annotated video.
+
+3) Run interface.py locally, pointing it to the downloaded labels and reference frame.
+
 ---
 
 ## Installation
