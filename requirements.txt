@@ -1,0 +1,9 @@
+numpy>=1.24
+opencv-python>=4.12
+PyYAML>=6.0
+optuna>=2.10
+ultralytics>=8.3
+torch>=2.4
+torchvision>=0.19
+matplotlib>=3.7
+tqdm>=4.60

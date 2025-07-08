@@ -6,13 +6,21 @@ Easy tool for researchers to train, test and apply tracking of mice and rats in 
 
 ## Installation
 
-1. Clone the repository:
+1. (Optional) Create and activate a Python virtual environment:
+
+   ```bash
+   python3 -m venv .ratenv
+   source .ratenv/bin/activate   # On Windows use `.venv\Scripts\activate`
+   ```
+
+2. Clone the repository:
 
    ```bash
    git clone https://github.com/leomaestri/RatTrack.git
    cd RatTrack
    ```
-2. Install dependencies:
+
+3. Install dependencies:
 
    ```bash
    pip install -r requirements.txt
@@ -39,7 +47,7 @@ python interface.py \
 ```
 
 * **--label\_dir**
-  Folder with per-frame detection `.txt` files.
+  Folder with per-frame detection `.txt` files. Generated from Test notebook
 * **--frame\_img**
   Reference image (e.g. `frame_000100.png`) on which to draw zones.
 * **--fps** *(default: 10)*
