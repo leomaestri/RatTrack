@@ -1,0 +1,32 @@
+# Byte-compiled Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+env/
+venv/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDEs y editores
+.vscode/
+.idea/
+*.suo
+*.user
+*.pyproj
+
+# Sistemas operativos
+.DS_Store
+Thumbs.db
+
+# Salidas de notebook
+*.html
+*.pdf
+
+# Datos descomprimidos (pero mantiene dataset.zip y test_video.MP4)
+data/dataset/
+!data/dataset.zip
+!data/test_video.MP4
