@@ -6,10 +6,12 @@ Easy tool for researchers to train, test and apply tracking of mice and rats in 
 
 Get started immediately on Google Colab:
 
+#### Train | Test
+
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/leomaestri/RatTrack/blob/main/notebooks/train_yolov11.ipynb)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/leomaestri/RatTrack/blob/main/notebooks/test_yolov11.ipynb)
 
-Common Workflow
+### Common Workflow
 
 1) Open the Test Notebook.
 
