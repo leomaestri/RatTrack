@@ -96,7 +96,7 @@ When you run `interface.py`, a window appears with these fields:
 
 6. Click **Aceptar** to confirm and proceed to zone drawing.
 
-![configuration_screenshot.png](docs%2Fimages%2Fconfiguration_screenshot.png)
+![configuration_screen.png](docs%2Fimages%2Fconfiguration_screen.png)
 
 ### Interactive Workflow
 
