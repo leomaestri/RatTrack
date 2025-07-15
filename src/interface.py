@@ -11,7 +11,7 @@ Usage:
       [--ignore_sec 0]
 
 Draw polygon zones by clicking vertices. Press SPACE to close a polygon.
-Press 'z' to undo the last point or polygon.
+Press z to undo the last point or polygon.
 Press ENTER to finish and compute metrics.
 Outputs per-zone:
   - First detection time (MM:SS.ss)
@@ -19,193 +19,202 @@ Outputs per-zone:
   - Escape latency: seconds until 4 consecutive frames without detections (+0.5s offset)
   - Frames at the start are ignored according to --ignore_sec
 """
+import tkinter as tk
+from tkinter import messagebox, ttk
 import argparse
-import glob
-import os
 import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.path import Path
+from metrics.metric_computations import (
+    compute_illumination,
+    compute_escape_latency,
+    compute_transfer_count,
+)
+from drawing import ZoneDrawer
+from outputs_and_reporting.reporting import report
+from utils import format_time, load_detections
 
 # Globals for interactive drawing
-zones = []            # list of polygons (each is a list of (x,y))
-current_pts = []      # vertices of the polygon being drawn
-pt_markers = []       # markers for current points
-poly_patches = []     # Polygon patches for completed zones
-text_labels = []      # text labels for zones
-bg_img = None         # background image (numpy array)
+zones = []  # list of polygons (each is a list of (x,y))
+current_pts = []  # vertices of the polygon being drawn
+pt_markers = []  # markers for current points
+poly_patches = []  # Polygon patches for completed zones
+text_labels = []  # text labels for zones
+bg_img = None  # background image (numpy array)
 
 
-def on_click(event):
-    if event.inaxes is None or on_click.finished:
-        return
-    x, y = event.xdata, event.ydata
-    current_pts.append((x, y))
-    marker = event.inaxes.scatter([x], [y], c='lime', s=50, zorder=5)
-    pt_markers.append(marker)
-    if len(current_pts) > 1:
-        xs, ys = zip(*current_pts)
-        event.inaxes.plot(xs, ys, c='lime', alpha=args.rect_alpha, zorder=4)
-    plt.draw()
+def get_user_config():
+    """
+    Show a single Tkinter window with entries for all parameters.
+    Returns an argparse.Namespace with the collected values.
+    """
+    root = tk.Tk()
+    root.title("Zone Counter Configuration")
+
+    # Row 0: Label Directory
+    tk.Label(root, text="Label Directory").grid(row=0, column=0, sticky="w", padx=5, pady=2)
+    ent_label = tk.Entry(root, width=50)
+    ent_label.grid(row=0, column=1, padx=5, pady=2)
+
+    # Row 1: Frame Image
+    tk.Label(root, text="Reference Frame Image").grid(row=1, column=0, sticky="w", padx=5, pady=2)
+    ent_frame = tk.Entry(root, width=50)
+    ent_frame.grid(row=1, column=1, padx=5, pady=2)
+
+    # Row 2: Ignore Start Time
+    tk.Label(root, text="Experiment Start Time (MM:SS)").grid(row=2, column=0, sticky="w", padx=5, pady=2)
+    ent_ignore = tk.Entry(root, width=10)
+    ent_ignore.insert(0, "00:00")
+    ent_ignore.grid(row=2, column=1, sticky="w", padx=5, pady=2)
+
+    # Visual Parameters frame (rows 3+)
+    vf = ttk.LabelFrame(root, text="Visual Parameters")
+    vf.grid(row=3, column=0, columnspan=2, padx=5, pady=10, sticky="we")
+
+    # Grid Spacing
+    tk.Label(vf, text="Grid Spacing (px)").grid(row=0, column=0, sticky="w", padx=5, pady=2)
+    ent_grid = tk.Entry(vf, width=10)
+    ent_grid.insert(0, "30")
+    ent_grid.grid(row=0, column=1, padx=5, pady=2)
+
+    # Polygon Transparency
+    tk.Label(vf, text="Polygon Transparency").grid(row=1, column=0, sticky="w", padx=5, pady=2)
+    ent_alpha = tk.Entry(vf, width=10)
+    ent_alpha.insert(0, "0.25")
+    ent_alpha.grid(row=1, column=1, padx=5, pady=2)
+
+    # --- Metrics Selection frame (rows 5+) ---
+    mf = ttk.LabelFrame(root, text="Metrics Selection")
+    mf.grid(row=5, column=0, columnspan=2, padx=5, pady=10, sticky="we")
+
+    # First Detection
+    var_fd = tk.BooleanVar(value=True)
+    cb_fd = tk.Checkbutton(
+        mf, text="First Detection:\t\ttime of first entry (MM:SS.ss)",
+        variable=var_fd,
+        anchor="w",
+        justify="left",
+    )
+    cb_fd.grid(row=0, column=0, sticky="w", padx=5, pady=2)
+
+    # Illumination Time
+    var_illu = tk.BooleanVar(value=True)
+    cb_illu = tk.Checkbutton(
+        mf,
+        text="Illumination Time (s, %):\ttime spent in zone over 5min",
+        variable=var_illu,
+        anchor="w",
+        justify="left",
+    )
+    cb_illu.grid(row=1, column=0, sticky="w", padx=5, pady=2)
+
+    # Escape Latency
+    var_lat = tk.BooleanVar(value=True)
+    cb_lat = tk.Checkbutton(
+        mf,
+        text="Escape Latency (s):\t\ttime until 4 consecutive misses",
+        variable=var_lat,
+        anchor="w",
+        justify="left",
+    )
+    cb_lat.grid(row=2, column=0, sticky="w", padx=5, pady=2)
+
+    # Transference Number
+    var_trans = tk.BooleanVar(value=True)
+    cb_trans = tk.Checkbutton(
+        mf,
+        text="Transference Number:\tnumber of exits & re-entries to the zone",
+        variable=var_trans,
+        anchor="w",
+        justify="left",
+    )
+    cb_trans.grid(row=3, column=0, sticky="w", padx=5, pady=2)
+
+    result = {}
+
+    def on_submit():
+        try:
+            # Read and validate paths
+            ld = ent_label.get().strip()
+            fi = ent_frame.get().strip()
+
+            if not ld or not fi:
+                raise ValueError("Label directory and frame image cannot be empty.")
+
+            # Parse Ignore Start Time MM:SS → seconds
+            mm, ss = ent_ignore.get().split(":")
+            ig_seconds = int(mm) * 60 + int(ss)
+
+            # Visual params
+            gs = int(ent_grid.get())
+            ra = float(ent_alpha.get())
+        except Exception as e:
+            messagebox.showerror("Invalid input", str(e))
+            return
+
+        result['args'] = argparse.Namespace(
+            label_dir=ld,
+            frame_img=fi,
+            fps=10.0,  # fixed default
+            grid_spacing=gs,
+            rect_alpha=ra,
+            ignore_sec=ig_seconds,
+            do_fd=var_fd.get(),
+            do_illum=var_illu.get(),
+            do_latency=var_lat.get(),
+            do_transfer=var_trans.get(),
+        )
+        root.destroy()
+
+    # Botón de aceptación (justo debajo del frame de métricas que está en la fila 5)
+    btn = tk.Button(root, text="Aceptar", command=on_submit)
+    btn.grid(row=6, column=0, columnspan=2, pady=10)
+
+    root.mainloop()
+    return result.get('args')
 
 
-def on_key(event):
-    ax = plt.gca()
-    if event.key == ' ' and not on_click.finished:
-        if len(current_pts) >= 3:
-            poly = plt.Polygon(
-                current_pts, closed=True, fill=True,
-                edgecolor='lime', facecolor='lime',
-                alpha=args.rect_alpha, zorder=3
-            )
-            ax.add_patch(poly)
-            poly_patches.append(poly)
-            x0, y0 = current_pts[0]
-            txt = ax.text(
-                x0 + 10, y0, str(len(zones) + 1),
-                color='lime', fontsize=12, weight='bold', zorder=6
-            )
-            text_labels.append(txt)
-            zones.append(current_pts.copy())
-            for m in pt_markers:
-                m.remove()
-            pt_markers.clear()
-            current_pts.clear()
-            plt.draw()
-    elif event.key == 'z' and not on_click.finished:
-        if current_pts:
-            pt_markers.pop().remove()
-            current_pts.pop()
-            plt.cla()
-            draw_grid()
-            redraw_all()
-            plt.draw()
-        elif zones:
-            zones.pop()
-            poly_patches.pop().remove()
-            text_labels.pop().remove()
-            plt.cla()
-            draw_grid()
-            redraw_all()
-            plt.draw()
-    elif event.key in ['enter', 'return']:
-        on_click.finished = True
-        plt.close()
-
-
-def redraw_all():
-    ax = plt.gca()
-    ax.imshow(bg_img)
-    for poly in poly_patches:
-        ax.add_patch(poly)
-    for txt in text_labels:
-        ax.add_artist(txt)
-    if len(current_pts) > 1:
-        xs, ys = zip(*current_pts)
-        ax.plot(xs, ys, c='lime', alpha=args.rect_alpha, zorder=4)
-    for x, y in current_pts:
-        ax.scatter([x], [y], c='lime', s=50, zorder=5)
-
-
-def draw_grid():
-    ax = plt.gca()
-    ax.set_xticks(np.arange(0, img_w + 1, args.grid_spacing))
-    ax.set_yticks(np.arange(0, img_h + 1, args.grid_spacing))
-    ax.grid(True, color='white', linestyle='--', linewidth=0.5)
-
-
-def compute_metrics():
-    label_files = sorted(glob.glob(os.path.join(args.label_dir, 'frame_*.txt')))
+def compute_metrics(zones, args):
     ignore_frames = int(args.ignore_sec * args.fps)
-
-    # now store (frame_idx, area) per zone
-    detection_info_per_zone = [[] for _ in zones]
-
-    # helper to compute polygon area
-    def poly_area(pts):
-        x = pts[:, 0]
-        y = pts[:, 1]
-        return 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
-
-    # iterate over all label files
-    for idx, lbl in enumerate(label_files):
-        if idx < ignore_frames:
-            continue
-        eff_idx = idx - ignore_frames
-        with open(lbl) as f:
-            lines = [l.split() for l in f if l.strip()]
-        if not lines:
-            continue
-        for parts in lines:
-            coords = list(map(float, parts[1:9]))
-            det_pts = np.array(coords).reshape(4, 2)
-            centroid = det_pts.mean(axis=0)
-            area = poly_area(det_pts)
-            for zi, zone in enumerate(zones):
-                if Path(zone).contains_point(centroid):
-                    detection_info_per_zone[zi].append((eff_idx, area))
-                    break
+    info_per_zone = load_detections(args.label_dir, ignore_frames, zones)
 
     window_frames = int(5 * 60 * args.fps)
     offset_frames = int(0.5 * args.fps)
 
-    print("\nZone | First Detection | Illumination Time (s, %) | Escape Latency (s)")
-    for zi, info in enumerate(detection_info_per_zone):
+    rows = []
+    for zi, info in enumerate(info_per_zone, start=1):
         if not info:
-            print(f"{zi + 1:4d} |      N/A       |    0.00s,  0.0%     |   N/A")
+            # no detections: all to None or 0
+            rows.append((zi, 'N/A', None, None, None, 0))
             continue
 
-        # sort frames for first detection
-        frames_sorted = sorted(f for f, _ in info)
-        start = frames_sorted[0]
-        # format MM:SS.ss
-        first_sec = start / args.fps
-        first_min = int(first_sec // 60)
-        first_rem = first_sec - first_min * 60
-        time_str = f"{first_min:02d}:{first_rem:05.2f}"
+        # first detection
+        first_frame = min(f for f, _ in info)
+        time_str = format_time(first_frame, args.fps)
 
-        # average area over all detections
+        # threshold area
         avg_area = sum(a for _, a in info) / len(info)
-        threshold = avg_area * 0.5
+        thr = avg_area * 0.5
 
-        # metric window
-        metric_start = start + offset_frames
-        metric_end = metric_start + window_frames
+        # analysis window
+        start = first_frame + offset_frames
+        end = start + window_frames
 
-        # filter frames within window with area >= threshold
-        det_in_win = [
-            f for f, a in info
-            if metric_start <= f < metric_end and a >= threshold
-        ]
-        t_illu = len(det_in_win) / args.fps
-        pct = (t_illu / (5 * 60)) * 100
+        # frames inside window & set of all frames
+        dets_in = [f for f, a in info if start <= f < end and a >= thr]
+        dets_set = {f for f, _ in info}
 
-        # escape latency (4 consecutive frames without any detection)
-        det_set = set(f for f, _ in info)
-        lat_sec = None
-        for f in range(metric_start, metric_end - 3):
-            if all((f + k) not in det_set for k in range(4)):
-                lat_sec = (f - metric_start) / args.fps
-                break
-        lat_str = f"{lat_sec:.2f}" if lat_sec is not None else "N/A"
+        # metrics
+        t_illu, pct = compute_illumination(dets_in, args.fps) if args.do_illum else (None, None)
+        lat = compute_escape_latency(dets_set, start, end, args.fps) if args.do_latency else None
+        transfers = compute_transfer_count(dets_set, start, end, offset_frames) if args.do_transfer else None
+        rows.append((zi, time_str, t_illu, pct, lat, transfers))
 
-        print(f"{zi + 1:4d} |    {time_str}    | {t_illu:6.2f}s, {pct:5.1f}%     |   {lat_str:6}")
+    return rows
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--label_dir', required=True,
-                        help='Path to inference labels')
-    parser.add_argument('--frame_img', required=True,
-                        help='Reference frame image')
-    parser.add_argument('--fps', type=float, default=10.0,
-                        help='Frames per second')
-    parser.add_argument('--grid_spacing', type=int, default=30,
-                        help='Grid line spacing')
-    parser.add_argument('--rect_alpha', type=float, default=0.25,
-                        help='Polygon transparency')
-    parser.add_argument('--ignore_sec', type=float, default=0.0,
-                        help='Seconds to ignore at beginning of video')
-    args = parser.parse_args()
+    args = get_user_config()
+    if args is None:
+        raise RuntimeError("Configuration cancelled")
 
     print("\n-----CONFIG PARAMETERS-----")
     print(f"Reference frame:  {args.frame_img}")
@@ -216,20 +225,13 @@ if __name__ == '__main__':
     print(f"Ignore seconds:   {args.ignore_sec}")
     print("---------------------------")
 
+    # 3) Read image and define zones
     img = plt.imread(args.frame_img)
-    img_h, img_w = img.shape[:2]
-    bg_img = img
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.imshow(bg_img)
-    draw_grid()
-    on_click.finished = False
-    fig.canvas.mpl_connect('button_press_event', on_click)
-    fig.canvas.mpl_connect('key_press_event', on_key)
-    ax.set_title("Click points; SPACE to close; Z to undo; ENTER to finish")
-    plt.show()
-
+    drawer = ZoneDrawer(img, rect_alpha=args.rect_alpha, grid_spacing=args.grid_spacing)
+    zones = drawer.start()
     if not zones:
         raise RuntimeError("No zones defined")
 
-    compute_metrics()
+    # 4) Compute metrics & report
+    rows = compute_metrics(zones, args)
+    report(rows)
