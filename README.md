@@ -95,7 +95,7 @@ When you run `interface.py`, a window appears with these fields:
    - Press **Z** to undo the last point or remove the last closed zone.  
    - Press **ENTER** when all zones are defined.
 
-![zone_delimitation_on_reference_frame.png](docs%2Fimages%2Fzone_delimitation_on_reference_frame.png)
+![zone_delimitation_on_frame_of_reference.png](docs%2Fimages%2Fzone_delimitation_on_frame_of_reference.png)![zone_delimitation_on_reference_frame.png]
 
 2. **Compute metrics**  
    After closing the drawing window, the script processes all labels, prints a neatly aligned table, and writes `outputs/zone_metrics.csv`:
