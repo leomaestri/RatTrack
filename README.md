@@ -85,6 +85,8 @@ When you run `interface.py`, a window appears with these fields:
 
 6. Click **Aceptar** to confirm and proceed to zone drawing.
 
+![configuration_screenshot.png](docs%2Fimages%2Fconfiguration_screenshot.png)
+
 ### Interactive Workflow
 
 1. **Draw zones**  
@@ -93,6 +95,8 @@ When you run `interface.py`, a window appears with these fields:
    - Press **Z** to undo the last point or remove the last closed zone.  
    - Press **ENTER** when all zones are defined.
 
+![zone_delimitation_on_reference_frame.png](docs%2Fimages%2Fzone_delimitation_on_reference_frame.png)
+
 2. **Compute metrics**  
    After closing the drawing window, the script processes all labels, prints a neatly aligned table, and writes `outputs/zone_metrics.csv`:
 
@@ -100,6 +104,10 @@ When you run `interface.py`, a window appears with these fields:
    * **Illumination Time**: seconds and percent of time-window where detection remains in the zone (≥ 50% average size of detection, "at least half the mouse/rat")
    * **Escape Latency**: seconds until 4 consecutive frames without any detection (with +0.5 s offset)
    * **Transference Number**: number of exits & re-entries to each zone
+
+![console_metrics_output_example.png](docs%2Fimages%2Fconsole_metrics_output_example.png)
+
+![csv_metrics_output_example.png](docs%2Fimages%2Fcsv_metrics_output_example.png)
 
 ---
 
