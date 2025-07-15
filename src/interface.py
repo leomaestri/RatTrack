@@ -65,9 +65,15 @@ def get_user_config():
     ent_ignore.insert(0, "00:00")
     ent_ignore.grid(row=2, column=1, sticky="w", padx=5, pady=2)
 
-    # Visual Parameters frame (rows 3+)
+    # Row 3: Experiment Duration (minutes)
+    tk.Label(root, text="Experiment Duration (min)").grid(row=3, column=0, sticky="w", padx=5, pady=2)
+    ent_duration = tk.Entry(root, width=10)
+    ent_duration.insert(0, "5")
+    ent_duration.grid(row=3, column=1, sticky="w", padx=5, pady=2)
+
+    # Visual Parameters frame (rows 4+)
     vf = ttk.LabelFrame(root, text="Visual Parameters")
-    vf.grid(row=3, column=0, columnspan=2, padx=5, pady=10, sticky="we")
+    vf.grid(row=4, column=0, columnspan=2, padx=5, pady=10, sticky="we")
 
     # Grid Spacing
     tk.Label(vf, text="Grid Spacing (px)").grid(row=0, column=0, sticky="w", padx=5, pady=2)
@@ -146,6 +152,8 @@ def get_user_config():
             # Visual params
             gs = int(ent_grid.get())
             ra = float(ent_alpha.get())
+            # Experiment duration in minutes
+            exp_min = float(ent_duration.get())
         except Exception as e:
             messagebox.showerror("Invalid input", str(e))
             return
@@ -157,6 +165,7 @@ def get_user_config():
             grid_spacing=gs,
             rect_alpha=ra,
             ignore_sec=ig_seconds,
+            exp_duration=exp_min,
             do_fd=var_fd.get(),
             do_illum=var_illu.get(),
             do_latency=var_lat.get(),
@@ -176,7 +185,7 @@ def compute_metrics(zones, args):
     ignore_frames = int(args.ignore_sec * args.fps)
     info_per_zone = load_detections(args.label_dir, ignore_frames, zones)
 
-    window_frames = int(5 * 60 * args.fps)
+    window_frames = int(args.exp_duration * 60 * args.fps)
     offset_frames = int(0.5 * args.fps)
 
     rows = []
