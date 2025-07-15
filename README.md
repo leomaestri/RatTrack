@@ -43,7 +43,18 @@ Get started immediately on Google Colab:
    ```bash
    pip install -r requirements.txt
    ```
+   System dependencies
 
+   * Python 3.9+
+   * tkinter GUI toolkit. On Debian/Ubuntu: 
+   ```bash
+   sudo apt-get install python3-tk
+   ```
+   On Fedora:   
+   ```bash
+   sudo dnf install python3-tkinter
+   ```
+   
 ---
 
 ## Interactive Zone Counter
