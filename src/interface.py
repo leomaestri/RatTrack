@@ -72,7 +72,7 @@ def get_user_config():
     # Grid Spacing
     tk.Label(vf, text="Grid Spacing (px)").grid(row=0, column=0, sticky="w", padx=5, pady=2)
     ent_grid = tk.Entry(vf, width=10)
-    ent_grid.insert(0, "30")
+    ent_grid.insert(0, "50")
     ent_grid.grid(row=0, column=1, padx=5, pady=2)
 
     # Polygon Transparency
